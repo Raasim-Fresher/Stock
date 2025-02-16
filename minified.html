@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Stock Portfolio Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #d0f0f7, #e0f7fa);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            width: 90%;
+            padding: 40px;
+        }
+
+        .chart, .number-card {
+            backdrop-filter: blur(15px);
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: transform 0.3s ease-in-out;
+            text-align: center;
+        }
+
+        .chart:hover, .number-card:hover {
+            transform: scale(1.05);
+        }
+
+        #upload-section {
+            margin-bottom: 20px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 15px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .m-3 {
+            margin: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="color: #004d40;">Stock Portfolio Dashboard</h1>
+    <div id="upload-section">
+        <input type="file" id="file-input" accept=".json, .xlsx">
+    </div>
+    <div id="profit-summary">
+        <div id="total-profit" class="number-card m-3">Total Profit: --</div>
+        <div id="profit-percentage" class="number-card m-3">Profit Percentage: --</div>
+    </div>
+    <div id="dashboard">
+        <div id="allocation-chart" class="chart"></div>
+        <div id="sector-allocation-chart" class="chart"></div>
+        <div id="overall-invested-vs-current-chart" class="chart"></div>
+        <div id="invested-vs-current-chart" class="chart"></div>
+        <div id="profit-loss-percent-chart" class="chart"></div>
+        <div id="chartContainer" class="chart"></div>
+        <div id="top-losers-chart" class="chart"></div>
+        <div id="top-performers-chart" class="chart"></div>
+        <div id="positive-performance-chart" class="chart"></div>
+        <div id="negative-performance-chart" class="chart"></div>
+        <div id="yearly-investment-chart" class="chart"></div>
+        <div id="monthly-investment-chart" class="chart"></div>
+    </div>
+
+    <script>
+        // Dynamically load the script to prevent it from appearing in DevTools
+        fetch('dashboard.js')
+            .then(response => response.text())
+            .then(code => new Function(code)())
+            .catch(error => console.error('Error loading dashboard script:', error));
+    </script>
+
+</body>
+</html>
