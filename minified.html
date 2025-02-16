@@ -81,7 +81,7 @@
 
     <script>
         // Dynamically load the script to prevent it from appearing in DevTools
-        fetch('dashboard.js')
+        fetch('minified.js')
             .then(response => response.text())
             .then(code => new Function(code)())
             .catch(error => console.error('Error loading dashboard script:', error));
