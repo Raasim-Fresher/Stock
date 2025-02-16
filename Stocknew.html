@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Stock Portfolio Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #d0f0f7, #e0f7fa);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+
+            gap: 40px;
+            width: 90%;
+            padding: 40px;
+        }
+
+        .chart,
+        .number-card {
+            backdrop-filter: blur(15px);
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: transform 0.3s ease-in-out;
+            text-align: center;
+        }
+
+        .chart:hover,
+        .number-card:hover {
+            transform: scale(1.05);
+        }
+
+        #upload-section {
+            margin-bottom: 20px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 15px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .m-3 {
+            margin: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="color: #004d40;">Stock Portfolio Dashboard</h1>
+    <div id="upload-section">
+        <input type="file" id="file-input" accept=".json, .xlsx">
+    </div>
+    <div id="profit-summary">
+        <div id="total-profit" class="number-card m-3">Total Profit: --</div>
+        <div id="profit-percentage" class="number-card m-3">Profit Percentage: --</div>
+    </div>
+    <div id="dashboard">
+        <div id="allocation-chart" class="chart"></div>
+        <div id="overall-invested-vs-current-chart" class="chart"></div>
+        <div id="invested-vs-current-chart" class="chart"></div>
+        <div id="profit-loss-percent-chart" class="chart"></div>
+        <div id="sector-allocation-chart" class="chart"></div>
+        <div id="top-losers-chart" class="chart"></div>
+        <div id="top-performers-chart" class="chart"></div>
+        <div id="positive-performance-chart" class="chart"></div>
+        <div id="negative-performance-chart" class="chart"></div>
+        <div id="monthly-investment-chart" class="chart"></div>
+    </div>
+
+    <script>
+        document.getElementById('file-input').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            if (file.name.endsWith('.json')) {
+                reader.onload = function (e) {
+                    const jsonData = JSON.parse(e.target.result);
+                    generateDashboard(jsonData);
+                };
+                reader.readAsText(file);
+            } else if (file.name.endsWith('.xlsx')) {
+                reader.onload = function (e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                    generateDashboard(jsonData);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        function generateDashboard(data) {
+            const funds = {};
+            const sectorData = {};
+            const invested = [];
+            const currentValues = [];
+            const profitLossPercent = [];
+            let totalInvested = 0;
+            let totalCurrent = 0;
+            const stockPerformance = [];
+
+            data.forEach(item => {
+                const name = item['Fund/Equity name'];
+
+                // Ensure values are strings before using replace
+                let investedMoney = item['Invested Money'] || "0";
+                let currentValue = item['Current Value'] || "0";
+
+                if (typeof investedMoney !== "string") investedMoney = investedMoney.toString();
+                if (typeof currentValue !== "string") currentValue = currentValue.toString();
+
+                // Remove non-numeric characters and convert to float
+                investedMoney = parseFloat(investedMoney.replace(/[^\d.-]/g, '')) || 0;
+                currentValue = parseFloat(currentValue.replace(/[^\d.-]/g, '')) || 0;
+
+                const sector = item['Sector'] || 'Uncategorized';
+
+                if (!funds[name]) {
+                    funds[name] = { invested: 0, currentValue: 0 };
+                }
+                funds[name].invested += investedMoney;
+                funds[name].currentValue += currentValue;
+
+                sectorData[sector] = (sectorData[sector] || 0) + investedMoney;
+
+                totalInvested += investedMoney;
+                totalCurrent += currentValue;
+            });
+
+            const equityNames = Object.keys(funds);
+            equityNames.forEach(name => {
+                const investedAmt = funds[name].invested;
+                const currentAmt = funds[name].currentValue;
+                invested.push(investedAmt);
+                currentValues.push(currentAmt);
+                const profitLoss = ((currentAmt - Math.abs(investedAmt)) / Math.abs(investedAmt)) * 100;
+                profitLossPercent.push(profitLoss);
+                stockPerformance.push({ name, profitLoss });
+            });
+
+
+            // Portfolio Allocation Chart
+            Plotly.newPlot('allocation-chart', [{
+                values: invested,
+                labels: equityNames,
+                type: 'pie'
+            }], {
+                title: 'Portfolio Allocation',
+                height: 600,
+                layout: {
+                    legend: {
+                        orientation: 'h',
+                        x: 0.5,
+                        xanchor: 'center',
+                        y: -0.2,
+                        yanchor: 'top'
+                    }
+                }
+            });
+
+            // Invested vs Current Value Chart
+            Plotly.newPlot('invested-vs-current-chart', [{
+                x: equityNames,
+                y: invested,
+                name: 'Invested Value',
+                type: 'bar',
+                text: invested.map(val => val.toFixed(2) + ' Lakhs'),
+                textposition: 'outside',
+            }, {
+                x: equityNames,
+                y: currentValues,
+                name: 'Current Value',
+                type: 'bar',
+                text: currentValues.map(val => val.toFixed(2) + ' Lakhs'),
+                textposition: 'outside',
+            }], {
+                title: 'Invested vs Current Value',
+                barmode: 'group',
+                height: 450
+            });
+
+            // Profit & Loss Percentage Chart
+            Plotly.newPlot('profit-loss-percent-chart', [{
+                x: equityNames,
+                y: profitLossPercent,
+                type: 'bar',
+                text: profitLossPercent.map(val => val.toFixed(2) + '%'),
+                textposition: 'outside',
+            }], {
+                title: 'Profit & Loss Percentage',
+                height: 400
+            });
+
+            // Sector Allocation Chart
+            Plotly.newPlot('sector-allocation-chart', [{
+                values: Object.values(sectorData),
+                labels: Object.keys(sectorData),
+                type: 'pie',
+                hoverinfo: 'label+percent+value',
+                hovertemplate: '<b>%{label}</b><br>Investment: %{value}<br>Percent: %{percent:.2f}%<extra></extra>'
+            }], {
+                title: 'Sector Allocation',
+                showlegend: true,
+                height: 400
+            });
+
+            // Overall Invested vs Current Value and Profit Percentage Chart
+            const totalInvestedInLakhs = totalInvested / 100000;
+            const totalCurrentInLakhs = totalCurrent / 100000;
+            const totalProfit = totalCurrent - totalInvested;
+            const totalProfitInLakhs = totalProfit / 100000;
+            const totalProfitPercentage = (totalProfit / totalInvested) * 100;
+
+            Plotly.newPlot('overall-invested-vs-current-chart', [{
+                x: ['Invested Value', 'Current Value'],
+                y: [totalInvested, totalCurrent],
+                type: 'bar',
+                text: [
+                    `₹${totalInvested.toLocaleString('en-IN')}`,
+                    `₹${totalCurrent.toLocaleString('en-IN')}`
+                ],
+                textposition: 'outside',
+                marker: { color: ['#92C5F9', '#4394E5'] }
+            }], {
+                title: 'Invested vs Current Value',
+                height: 450
+            });
+            // Top 3 Losers Chart
+            stockPerformance.sort((a, b) => a.profitLoss - b.profitLoss); // Sort by profitLoss
+            const topLosers = stockPerformance.slice(0, 3);
+            Plotly.newPlot('top-losers-chart', [{
+                x: topLosers.map(item => item.name),
+                y: topLosers.map(item => item.profitLoss),
+                type: 'bar',
+                text: topLosers.map(item => item.profitLoss.toFixed(2) + '%'),
+                textposition: 'outside',
+                marker: { color: '#FF6347' }
+            }], {
+                title: 'Top 3 Losers',
+                height: 400
+            });
+
+            // Top 3 Performers Chart
+            stockPerformance.sort((a, b) => b.profitLoss - a.profitLoss); // Sort by profitLoss descending
+            const topPerformers = stockPerformance.slice(0, 3);
+            Plotly.newPlot('top-performers-chart', [{
+                x: topPerformers.map(item => item.name),
+                y: topPerformers.map(item => item.profitLoss),
+                type: 'bar',
+                text: topPerformers.map(item => item.profitLoss.toFixed(2) + '%'),
+                textposition: 'outside',
+                marker: { color: '#4CAF50' }
+            }], {
+                title: 'Top 3 Performers',
+                height: 400
+            });
+
+
+            // Positive Performance Stocks (Profit > 0)
+            const positiveStocks = stockPerformance.filter(stock => stock.profitLoss > 0);
+            Plotly.newPlot('positive-performance-chart', [{
+                x: positiveStocks.map(item => item.name),
+                y: positiveStocks.map(item => item.profitLoss),
+                type: 'bar',
+                text: positiveStocks.map(item => item.profitLoss.toFixed(2) + '%'),
+                textposition: 'outside',
+                marker: { color: '#4CAF50' }  // Green for positive performance
+            }], {
+                title: 'Positive Performance Stocks',
+                height: 400
+            });
+
+            // Negative Performance Stocks (Profit < 0)
+            const negativeStocks = stockPerformance.filter(stock => stock.profitLoss < 0);
+            Plotly.newPlot('negative-performance-chart', [{
+                x: negativeStocks.map(item => item.name),
+                y: negativeStocks.map(item => item.profitLoss),
+                type: 'bar',
+                text: negativeStocks.map(item => item.profitLoss.toFixed(2) + '%'),
+                textposition: 'outside',
+                marker: { color: '#FF6347' }  // Red for negative performance
+            }], {
+                title: 'Negative Performance Stocks',
+                height: 400
+            });
+
+          
+
+            document.getElementById('total-profit').innerText = `Total Profit: ₹${totalProfit.toLocaleString('en-IN')}`;
+            document.getElementById('profit-percentage').innerText = `Profit Percentage: ${totalProfitPercentage.toFixed(2)}%`;
+
+           
+
+        }
+
+
+    </script>
+</body>
+
+</html>
